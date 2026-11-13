@@ -1,0 +1,8 @@
+{
+  "appId": "local.bible.malayalam",
+  "appName": "Malayalam Bible Reader",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}
