@@ -1086,6 +1086,23 @@ select:focus-visible {
   line-height: 1.75;
 }
 
+.donation-link {
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 9px;
+}
+
+.donation-link img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.donation-link:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 3px;
+}
+
 .empty-state {
   margin: 30px 0;
   color: var(--muted);

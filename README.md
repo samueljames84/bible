@@ -40,7 +40,7 @@ npm run build
 npm run preview
 ```
 
-The production service worker pre-caches the app and Bible database for offline use. The first web visit must finish loading the app once before it can be used offline. Settings, last reading position, and bookmarks are stored on the device.
+The production service worker pre-caches the app and Bible database for offline use. The first web visit must finish loading the app once before it can be used offline. Settings, last reading position, and bookmarks are stored on the device. The reader does not collect or send telemetry.
 
 ## Run directly on Windows
 
@@ -89,6 +89,7 @@ The debug APK is written to `android\app\build\outputs\apk\debug\app-debug.apk`.
 - Adjust theme (including Dark Green, Black, and Dark Grey), legacy Unicode rendering preference, and bookmark options. The original green-tinted Black theme is retained as Dark Green.
 - Select verses to copy, share, clear, or bookmark; bookmark a chapter; open and delete saved bookmarks; optionally group bookmarks by date.
 - Import and export bookmark backups as JSON from the Bookmarks page on the website or Android. Imports merge with existing bookmarks and skip duplicate passages; the Android system file picker lets you choose where to save or open the backup.
+- Optionally support server costs through the external Buy Me a Coffee link on the Info page; opening the donation website requires internet access and is subject to that site's privacy practices.
 - Continue at the last read chapter.
 
 The supplied `app_icon.png` is used for the Android launcher and web app icons, with a warm off-white background for contrast.

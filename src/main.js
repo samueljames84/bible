@@ -575,7 +575,13 @@ function renderInfo() {
     </section>
     <section class="settings-group">
       <h2>Offline by design</h2>
-      <p>The Bible database is bundled with the app. Reading, navigation, settings, and bookmarks work without an internet connection.</p>
+      <p>The Android app works completely offline. The web reader can work offline after its first visit has finished loading, when offline caching is available. The reader does not collect or send telemetry.</p>
+    </section>
+    <section class="settings-group">
+      <h2>Support this app</h2>
+      <p>This app is completely ad-free and fully functional. If you find it useful, please consider donating to help cover server costs. Thank you for your support!</p>
+      <a class="donation-link" href="https://buymeacoffee.com/sj84" ${Capacitor.isNativePlatform() ? "" : 'target="_blank" rel="noopener noreferrer"'}><img src="${import.meta.env.BASE_URL}buy-me-a-coffee.png" alt="Buy Me a Coffee" width="220" height="62"></a>
+      <p class="setting-note">The external donation website opens in your browser, requires internet access, and has its own privacy practices.</p>
     </section>
   </main>`;
 }
