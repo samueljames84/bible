@@ -1,0 +1,104 @@
+:root {
+  color-scheme: dark;
+  font-family: "Noto Sans Malayalam", "Nirmala UI", "Kartika", system-ui, sans-serif;
+  background: #000;
+  color: #fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#presentation {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+#presentation {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(8px, 2vh, 24px);
+  padding: clamp(12px, 3vw, 48px);
+  overflow: hidden;
+}
+
+.presentation-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.presentation-heading,
+.presentation-progress {
+  margin: 0;
+  font-size: clamp(18px, 2.4vw, 36px);
+  font-weight: 600;
+}
+
+.presentation-heading {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.presentation-progress {
+  flex: none;
+  white-space: nowrap;
+}
+
+.presentation-viewport {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.presentation-clip,
+.presentation-measure {
+  position: absolute;
+  inset: 0;
+}
+
+.presentation-clip {
+  bottom: auto;
+  overflow: hidden;
+}
+
+.presentation-panel {
+  position: absolute;
+  inset: 0 0 auto;
+  transition: transform var(--slide-duration) ease;
+  will-change: transform;
+}
+
+.presentation-measure {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.presentation-verse {
+  display: grid;
+  grid-template-columns: 2em minmax(0, 1fr);
+  padding-bottom: .28em;
+  font-size: var(--presentation-size);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.presentation-number {
+  font-size: .65em;
+  line-height: 2;
+}
+
+.presentation-end {
+  font-size: var(--presentation-size);
+  text-align: center;
+}
+
+.presentation-status {
+  margin: 0;
+  font-size: 20px;
+}
+

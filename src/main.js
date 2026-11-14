@@ -1,5 +1,5 @@
 import { App } from "@capacitor/app";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import initSqlJs from "sql.js";
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import {
@@ -14,6 +14,7 @@ import {
   readSecondView,
 } from "./catalog.js";
 import { DEFAULT_ZOOM, readZoom, ZOOM_OPTIONS } from "./zoom.js";
+import { bookmarkBackup, mergeBookmarks, parseBookmarkBackup } from "./bookmarks.js";
 import "./style.css";
 
 const app = document.querySelector("#app");
@@ -21,6 +22,7 @@ const SETTINGS_KEY = "bible-reader.settings";
 const BOOKMARKS_KEY = "bible-reader.bookmarks";
 const LAST_POSITION_KEY = "bible-reader.last-position";
 const APP_ICON_URL = `${import.meta.env.BASE_URL}icon-192.png`;
+const BookmarkBackup = registerPlugin("BookmarkBackup");
 const DEFAULT_SETTINGS = Object.freeze({
   primary: DEFAULT_PRIMARY_LANGUAGE,
   secondary: DEFAULT_SECONDARY_LANGUAGE,
@@ -29,12 +31,15 @@ const DEFAULT_SETTINGS = Object.freeze({
   zoom: DEFAULT_ZOOM,
   theme: "green",
   rendering: "0",
+  readingBold: false,
   groupBookmarks: false,
   bookmarkOnLongPress: true,
 });
 const THEMES = [
   ["white", "White"],
-  ["black", "Black"],
+  ["dark-black", "Black"],
+  ["dark-grey", "Dark Grey"],
+  ["dark-green", "Dark Green"],
   ["maroon", "Maroon"],
   ["green", "Light Green"],
   ["yellow", "Light Yellow"],
@@ -68,11 +73,14 @@ function readSettings() {
     const next = { ...DEFAULT_SETTINGS, ...stored, zoom: readZoom(stored) };
     Object.assign(next, readSecondView(stored));
     delete next.fontSize;
+    delete next.presentationBold;
     if (!LANGUAGES.some((language) => language.id === next.primary)) next.primary = DEFAULT_SETTINGS.primary;
     if (!LAYOUTS.some((layout) => layout.id === next.layout)) next.layout = DEFAULT_SETTINGS.layout;
+    if (next.theme === "black") next.theme = "dark-green";
     if (!THEMES.some(([theme]) => theme === next.theme)) next.theme = DEFAULT_SETTINGS.theme;
     if (!RENDERING_OPTIONS.some(([mode]) => mode === String(next.rendering))) next.rendering = DEFAULT_SETTINGS.rendering;
     next.rendering = String(next.rendering);
+    next.readingBold = next.readingBold === true;
     next.groupBookmarks = Boolean(next.groupBookmarks);
     next.bookmarkOnLongPress = Boolean(next.bookmarkOnLongPress);
     return next;
@@ -166,6 +174,63 @@ function getVerses(languageId, bookId, chapterId) {
   return verses;
 }
 
+function bookmarkReferenceValidator() {
+  const chapterVerses = new Map();
+  return (bookId, chapterId, verseIds) => {
+    const book = bookById(bookId);
+    if (!book || chapterId > book.num_chptr) return false;
+    if (!verseIds?.length) return true;
+    const key = `${bookId}:${chapterId}`;
+    if (!chapterVerses.has(key)) {
+      chapterVerses.set(key, new Set(LANGUAGES.flatMap((language) =>
+        getVerses(language.id, bookId, chapterId).map((verse) => Number(verse.verse_id)))));
+    }
+    return verseIds.every((verseId) => chapterVerses.get(key).has(verseId));
+  };
+}
+
+function storedBookmarksForBackup(validReference) {
+  const stored = JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || "[]");
+  return parseBookmarkBackup(bookmarkBackup(stored), validReference);
+}
+
+async function exportBookmarks() {
+  try {
+    const bookmarks = storedBookmarksForBackup(bookmarkReferenceValidator());
+    const content = bookmarkBackup(bookmarks);
+    if (Capacitor.isNativePlatform()) {
+      const result = await BookmarkBackup.exportFile({ content });
+      if (!result.cancelled) notify("Bookmarks exported.");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bible-bookmarks.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    notify("Bookmark download started.");
+  } catch (error) {
+    notify(`Could not export bookmarks: ${error.message}`);
+    console.error(error);
+  }
+}
+
+async function importBookmarks(file) {
+  try {
+    const validReference = bookmarkReferenceValidator();
+    const incoming = parseBookmarkBackup(await file.text(), validReference);
+    const existing = storedBookmarksForBackup(validReference);
+    const result = mergeBookmarks(existing, incoming);
+    if (result.added && !writeBookmarks(result.bookmarks)) return;
+    render();
+    notify(`Imported ${result.added} bookmark${result.added === 1 ? "" : "s"}; duplicates skipped.`);
+  } catch (error) {
+    notify(`Could not import bookmarks: ${error.message}`);
+    console.error(error);
+  }
+}
+
 function loadChapter(book, chapterId, verseIds = null) {
   if (!book || chapterId < 1 || chapterId > Number(book.num_chptr)) {
     notify("That chapter is not available.");
@@ -230,6 +295,7 @@ function render() {
   parallelResizeObserver = undefined;
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.dataset.view = activeView;
+  document.documentElement.dataset.readingBold = String(settings.readingBold);
   document.documentElement.style.setProperty("--reading-size", `${16 * settings.zoom / 100}px`);
   const screen = activeView === "books" ? renderBooks()
     : activeView === "chapters" ? renderChapters()
@@ -276,15 +342,15 @@ function renderBooks() {
       <div><p class="eyebrow">The library</p><h2>Books of the Bible</h2></div>
       <label class="search-box"><span class="sr-only">Search books</span><input id="book-search" type="search" value="${escapeHtml(bookFilter)}" placeholder="Find a book" autocomplete="off"></label>
     </div>
-    ${renderBookSection("Old Testament", oldTestament)}
-    ${renderBookSection("New Testament", newTestament)}
+    ${renderBookSection("Old Testament", oldTestament, "old-testament")}
+    ${renderBookSection("New Testament", newTestament, "new-testament")}
     ${visibleBooks.length === 0 ? `<p class="empty-state">No books match that search.</p>` : ""}
   </main>`;
 }
 
-function renderBookSection(title, sectionBooks) {
+function renderBookSection(title, sectionBooks, testamentClass) {
   if (!sectionBooks.length) return "";
-  return `<section class="book-section"><h3>${title}</h3><div class="book-grid">
+  return `<section class="book-section ${testamentClass}"><h3>${title}</h3><div class="book-grid">
     ${sectionBooks.map((book) => `<button class="book-card" type="button" data-action="open-book" data-book-id="${book.book_id}">
       <span class="book-card-top"><strong>${escapeHtml(bookName(book, settings.primary))}</strong><span aria-hidden="true">›</span></span>
       ${settings.secondaryEnabled ? `<small>${escapeHtml(bookName(book, settings.secondary))}</small>` : ""}
@@ -317,14 +383,21 @@ function renderReader() {
   const hasSelection = selectedVerses.size > 0;
   const balanced = settings.secondaryEnabled && settings.layout === "balanced";
   const readerContent = renderReaderContent();
+  const webPresentation = !Capacitor.isNativePlatform();
+  const presentationParams = new URLSearchParams({
+    book: String(currentBook.book_id),
+    chapter: String(currentChapter),
+    language: settings.primary,
+  });
   return `<main class="reader-page ${balanced ? "is-balanced-reader" : ""}">
-    <header class="reader-toolbar">
+    <header class="reader-toolbar ${webPresentation ? "has-presentation" : ""}">
       <button class="reader-back icon-button" type="button" data-action="chapters" aria-label="Choose a chapter" title="Choose a chapter">‹</button>
       <div class="reader-location">
         <strong>${escapeHtml(bookName(currentBook, settings.primary))}</strong>
         <span>${escapeHtml(getLanguage(settings.primary).label)}${settings.secondaryEnabled ? ` · ${escapeHtml(getLanguage(settings.secondary).label)}` : ""}</span>
       </div>
       <label class="chapter-picker"><span class="sr-only">Choose chapter</span><select data-select="chapter" aria-label="Choose chapter">${chapterOptions}</select></label>
+      ${webPresentation ? `<a class="presentation-button" href="${import.meta.env.BASE_URL}presentation.html?${escapeHtml(presentationParams)}" target="_blank" rel="noopener">Open Presentation</a>` : ""}
       <details class="reader-overflow">
         <summary class="icon-button" aria-label="More options" title="More options">⋮</summary>
         <nav class="reader-overflow-menu" aria-label="More reading options">
@@ -410,15 +483,18 @@ function renderSettings() {
       <h2>Languages</h2>
       ${renderSelect("primary", "Primary language", LANGUAGES.map(({ id, label }) => [id, label]))}
       ${renderCheckbox("secondaryEnabled", "Show second view")}
-      ${settings.secondaryEnabled ? renderSelect("secondary", "Second language", LANGUAGES.map(({ id, label }) => [id, label])) : ""}
-      ${renderSelect("layout", "Display layout", LAYOUTS.map(({ id, label }) => [id, label]))}
-      <p class="setting-note">Balanced split gives both languages equal space, stacked in portrait and side by side in landscape. Other layouts remain available here.</p>
+      ${settings.secondaryEnabled ? `
+        ${renderSelect("secondary", "Second language", LANGUAGES.map(({ id, label }) => [id, label]))}
+        ${renderSelect("layout", "Display layout", LAYOUTS.map(({ id, label }) => [id, label]))}
+        <p class="setting-note">Balanced split gives both languages equal space, stacked in portrait and side by side in landscape. Other layouts remain available here.</p>
+      ` : ""}
     </section>
     <section class="settings-group">
       <h2>Appearance</h2>
       ${renderSelect("zoom", "Reading text zoom", ZOOM_OPTIONS)}
+      ${renderCheckbox("readingBold", "Bold reading text")}
       <p class="setting-note">Reading text preview</p>
-      <p class="font-preview" aria-label="Reading text size preview">Aa · അ ആ ഇ ഈ</p>
+      <p class="font-preview" aria-label="Reading text size preview">Aa · அ ஆ இ ஈ · അ ആ ഇ ഈ</p>
       <p class="setting-note">At large zoom, side-by-side text may scroll horizontally on narrow screens.</p>
       ${renderSelect("theme", "Theme", THEMES)}
       ${renderSelect("rendering", "Unicode rendering", RENDERING_OPTIONS)}
@@ -463,6 +539,11 @@ function renderBookmarks() {
   return `<main class="page narrow-page">
     <div class="page-topline"><button class="back-button" type="button" data-action="back">← Back</button><span class="eyebrow">Your saved passages</span></div>
     <div class="section-heading"><h1>Bookmarks</h1><button class="quiet-button" type="button" data-action="settings">Settings</button></div>
+    <div class="bookmark-transfer">
+      <button class="secondary-button" type="button" data-action="import-bookmarks">Import bookmarks</button>
+      <button class="secondary-button" type="button" data-action="export-bookmarks">Export bookmarks</button>
+      <input id="bookmark-import" type="file" accept=".json,application/json" hidden>
+    </div>
     ${list}
   </main>`;
 }
@@ -487,8 +568,9 @@ function renderInfo() {
     <p class="lead">A private, offline-first reading app with Malayalam, Tamil, and English KJV texts.</p>
     <section class="settings-group">
       <h2>Included texts</h2>
-      <ul class="text-list"><li>Malayalam: The Complete Malayalam Bible In Unicode, Ver. 3</li><li>Tamil: Bible-tamil by Arul John (MIT License)</li><li>English: King James Version (KJV)</li></ul>
-      <p class="setting-note">The original app's information page credits the Malayalam encoding to Nishad Kaippally and describes non-commercial, non-profit use under a Creative Commons license; it does not identify a license version. The original app describes the English content as public domain. This recreation is intended for private use; confirm current terms before sharing or redistributing text.</p>
+      <ul class="text-list"><li>Malayalam: Free Bibles India, adapted to KJV references (CC BY-SA 4.0)</li><li>Tamil: Bible-tamil by Arul John (MIT License)</li><li>English: King James Version (KJV)</li></ul>
+      <p class="setting-note">Malayalam original work available at http://www.freebiblesindia.in. Verse boundaries have been adapted; some passages are combined or unavailable, and translation wording can differ from KJV. See MALAYALAM-LICENSE.txt for attribution and license details.</p>
+      <p class="setting-note">Verse numbers match KJV, but the translations have not been comprehensively checked for equivalent wording. The original app describes the English content as public domain; confirm its terms before redistribution.</p>
       <p class="setting-note">Tamil text is adapted from Arul John's Bible-tamil repository. Its MIT license and attribution are included in TAMIL-LICENSE.txt.</p>
     </section>
     <section class="settings-group">
@@ -804,6 +886,12 @@ function handleClick(event) {
     case "open-bookmark":
       openBookmark(target.dataset.bookmarkId);
       break;
+    case "import-bookmarks":
+      app.querySelector("#bookmark-import").click();
+      break;
+    case "export-bookmarks":
+      void exportBookmarks();
+      break;
     case "delete-bookmark": {
       const next = readBookmarks().filter((bookmark) => bookmark.id !== target.dataset.bookmarkId);
       if (writeBookmarks(next)) {
@@ -822,6 +910,12 @@ function handleClick(event) {
 }
 
 function handleChange(event) {
+  if (event.target.id === "bookmark-import") {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) void importBookmarks(file);
+    return;
+  }
   const setting = event.target.dataset.setting;
   if (setting) {
     const value = event.target.type === "checkbox" ? event.target.checked

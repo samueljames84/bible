@@ -122,7 +122,7 @@ try {
             if ($ownedListener) {
                 try {
                     $response = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -UseBasicParsing -TimeoutSec 2
-                    if ($response.StatusCode -eq 200 -and $response.Content -match '<title>Malayalam Bible Reader</title>') {
+                    if ($response.StatusCode -eq 200 -and $response.Content -match '<title>Bible</title>') {
                         Write-Host "Bible reader is running at http://localhost:$port"
                         Write-Host 'Use stop_server.bat to stop it. Logs are in .local.'
                         exit 0

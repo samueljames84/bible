@@ -18,9 +18,13 @@ async function collect(directory) {
 
 await collect(outputDirectory);
 assets.sort();
-const hash = createHash("sha256").update(assets.join("\n")).digest("hex").slice(0, 12);
+const digest = createHash("sha256");
+for (const asset of assets) {
+  digest.update(asset).update("\0").update(await readFile(path.join(outputDirectory, asset)));
+}
+const hash = digest.digest("hex").slice(0, 12);
 const script = `const CACHE_NAME = "bible-reader-${hash}";
-const PRECACHE = ${JSON.stringify(assets)}.map((asset) => new URL(asset, self.registration.scope).href);
+const PRECACHE = ${JSON.stringify(["", ...assets])}.map((asset) => new URL(asset, self.registration.scope).href);
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
@@ -30,7 +34,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+  const url = new URL(request.url);
+  if (request.mode === "navigate") url.search = "";
+  const precached = PRECACHE.includes(url.href);
+  event.respondWith(caches.match(precached ? url.href : request, precached ? { ignoreVary: true } : undefined).then((cached) => cached || fetch(request).then((response) => {
     if (response.ok) {
       const copy = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));

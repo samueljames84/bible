@@ -10,6 +10,11 @@
   --accent: #496b5b;
   --accent-strong: #315343;
   --accent-soft: #e3ebe5;
+  --accent-foreground: #fff;
+  --old-card: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --new-card: color-mix(in srgb, var(--accent) 19%, var(--surface));
+  --old-card-border: color-mix(in srgb, var(--accent) 24%, var(--surface));
+  --new-card-border: color-mix(in srgb, var(--accent) 35%, var(--surface));
   --highlight: #f5e5a8;
   --shadow: 0 12px 32px rgb(34 49 39 / 7%);
   --reading-size: 16px;
@@ -27,10 +32,14 @@
   --accent: #526e61;
   --accent-strong: #3c574a;
   --accent-soft: #e7eee9;
+  --old-card: #eeeeee;
+  --new-card: #dedede;
+  --old-card-border: #d5d5d5;
+  --new-card-border: #c4c4c4;
   --highlight: #fff0a9;
 }
 
-:root[data-theme="black"] {
+:root[data-theme="dark-green"] {
   color-scheme: dark;
   --page: #121513;
   --surface: #1c211e;
@@ -41,7 +50,52 @@
   --accent: #a4c8b3;
   --accent-strong: #c2dfce;
   --accent-soft: #263b30;
+  --accent-foreground: var(--surface);
+  --old-card: #27342b;
+  --new-card: #384b3d;
+  --old-card-border: #455e4b;
+  --new-card-border: #58745f;
   --highlight: #665624;
+  --shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+
+:root[data-theme="dark-black"] {
+  color-scheme: dark;
+  --page: #000;
+  --surface: #181818;
+  --surface-muted: #282828;
+  --text: #f0f0f0;
+  --muted: #ababab;
+  --line: #383838;
+  --accent: #c0c0c0;
+  --accent-strong: #e0e0e0;
+  --accent-soft: #303030;
+  --accent-foreground: var(--surface);
+  --old-card: #292929;
+  --new-card: #3b3b3b;
+  --old-card-border: #484848;
+  --new-card-border: #595959;
+  --highlight: #555;
+  --shadow: 0 12px 32px rgb(0 0 0 / 18%);
+}
+
+:root[data-theme="dark-grey"] {
+  color-scheme: dark;
+  --page: #2a2a2a;
+  --surface: #343434;
+  --surface-muted: #414141;
+  --text: #f5f5f5;
+  --muted: #bdbdbd;
+  --line: #565656;
+  --accent: #c8c8c8;
+  --accent-strong: #e8e8e8;
+  --accent-soft: #444;
+  --accent-foreground: var(--surface);
+  --old-card: #3b3b3b;
+  --new-card: #505050;
+  --old-card-border: #606060;
+  --new-card-border: #737373;
+  --highlight: #555;
   --shadow: 0 12px 32px rgb(0 0 0 / 18%);
 }
 
@@ -357,7 +411,17 @@ select:focus-visible {
   cursor: pointer;
 }
 
-.book-card:hover {
+.old-testament .book-card {
+  border-color: var(--old-card-border);
+  background: var(--old-card);
+}
+
+.new-testament .book-card {
+  border-color: var(--new-card-border);
+  background: var(--new-card);
+}
+
+.book-section .book-card:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
   box-shadow: var(--shadow);
@@ -377,7 +441,7 @@ select:focus-visible {
 .book-card small {
   display: block;
   margin-top: 5px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--text) 75%, transparent);
   font-size: 11px;
 }
 
@@ -503,6 +567,27 @@ select:focus-visible {
   text-align: center;
 }
 
+.presentation-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.presentation-button:hover,
+.presentation-button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .reader-overflow {
   position: relative;
   flex: 0 0 40px;
@@ -581,6 +666,12 @@ select:focus-visible {
   user-select: text;
   -webkit-user-select: text;
   touch-action: manipulation;
+}
+
+:root[data-reading-bold="true"] .verse-text,
+:root[data-reading-bold="true"] .font-preview {
+  font-weight: 700;
+  font-synthesis: weight;
 }
 
 .verse-text:hover {
@@ -831,7 +922,7 @@ select:focus-visible {
 .primary-button {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-foreground);
 }
 
 .settings-page h1,
@@ -864,7 +955,8 @@ select:focus-visible {
 }
 
 .setting-row select {
-  min-width: 175px;
+  width: 220px;
+  min-width: 0;
   max-width: 52%;
   min-height: 37px;
   padding: 5px 8px;
@@ -901,6 +993,13 @@ select:focus-visible {
 }
 
 .bookmark-list,
+.bookmark-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
 .bookmark-group {
   margin-top: 17px;
 }
@@ -1181,12 +1280,23 @@ select:focus-visible {
   }
 
   .setting-row select {
-    min-width: 135px;
     font-size: 12px;
   }
 
   .settings-group {
     padding: 15px;
+  }
+}
+
+@media (max-width: 520px) {
+  .reader-toolbar.has-presentation {
+    flex-wrap: wrap;
+  }
+
+  .presentation-button {
+    order: 1;
+    width: 100%;
+    min-height: 34px;
   }
 }
 

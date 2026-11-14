@@ -1,0 +1,15 @@
+Malayalam Bible text
+
+Original work available at http://www.freebiblesindia.in
+Source: https://github.com/FreeBiblesIndia/Malayalam_Bible
+Revision: 2f1c62bcd06158a1f5f13cc1fcaa2f8fac1fc2c2
+
+The original is made available under the Creative Commons Attribution-ShareAlike
+4.0 International License: https://creativecommons.org/licenses/by-sa/4.0/
+License terms: https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+This app adapts the source by removing USFM formatting, footnotes and headings,
+reassigning or combining some verse boundaries to follow KJV references, and
+adding notices for combined or unavailable verses. The adapted Malayalam text
+is provided under the same license. These changes do not imply endorsement by
+Free Bibles India.
