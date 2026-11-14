@@ -1,12 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildVersePairs, formatVerseRanges, getLanguage, getTranslationTable } from "./catalog.js";
+import { buildVersePairs, formatVerseRanges, getLanguage, getTranslationTable, readSecondView } from "./catalog.js";
 
-test("maps the three editions to the correct database tables", () => {
+test("maps the editions to the correct database tables", () => {
   assert.equal(getTranslationTable("ml"), "verses");
   assert.equal(getTranslationTable("kjv"), "verses_kjv");
-  assert.equal(getTranslationTable("asv"), "verses_asv");
+  assert.equal(getTranslationTable("ta"), "verses_tamil");
   assert.equal(getLanguage("unknown").id, "ml");
+});
+
+test("migrates the old single-language setting and preserves the second language", () => {
+  assert.deepEqual(readSecondView({}), { secondaryEnabled: true, secondary: "ml" });
+  assert.deepEqual(readSecondView({ secondary: "none" }), { secondaryEnabled: false, secondary: "ml" });
+  assert.deepEqual(readSecondView({ secondary: "kjv" }), { secondaryEnabled: true, secondary: "kjv" });
+  assert.deepEqual(readSecondView({ secondary: "asv" }), { secondaryEnabled: true, secondary: "ml" });
+  assert.deepEqual(readSecondView({ secondary: "ta", secondaryEnabled: false }), { secondaryEnabled: false, secondary: "ta" });
+  assert.deepEqual(readSecondView({ secondary: "ta" }), { secondaryEnabled: true, secondary: "ta" });
 });
 
 test("aligns translations by verse number even when a verse is absent", () => {

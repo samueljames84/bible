@@ -4,11 +4,14 @@ import initSqlJs from "sql.js";
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import {
   buildVersePairs,
+  DEFAULT_PRIMARY_LANGUAGE,
+  DEFAULT_SECONDARY_LANGUAGE,
   formatVerseRanges,
   getLanguage,
   getTranslationTable,
   LANGUAGES,
   LAYOUTS,
+  readSecondView,
 } from "./catalog.js";
 import { DEFAULT_ZOOM, readZoom, ZOOM_OPTIONS } from "./zoom.js";
 import "./style.css";
@@ -19,8 +22,9 @@ const BOOKMARKS_KEY = "bible-reader.bookmarks";
 const LAST_POSITION_KEY = "bible-reader.last-position";
 const APP_ICON_URL = `${import.meta.env.BASE_URL}icon-192.png`;
 const DEFAULT_SETTINGS = Object.freeze({
-  primary: "ml",
-  secondary: "kjv",
+  primary: DEFAULT_PRIMARY_LANGUAGE,
+  secondary: DEFAULT_SECONDARY_LANGUAGE,
+  secondaryEnabled: true,
   layout: "balanced",
   zoom: DEFAULT_ZOOM,
   theme: "green",
@@ -54,6 +58,7 @@ let noticeTimer;
 let longPressTimer;
 let longPressTriggered = false;
 let parallelScrollLock = false;
+let parallelResizeObserver;
 let lastPosition;
 let settings = readSettings();
 
@@ -61,11 +66,9 @@ function readSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
     const next = { ...DEFAULT_SETTINGS, ...stored, zoom: readZoom(stored) };
+    Object.assign(next, readSecondView(stored));
     delete next.fontSize;
     if (!LANGUAGES.some((language) => language.id === next.primary)) next.primary = DEFAULT_SETTINGS.primary;
-    if (next.secondary !== "none" && !LANGUAGES.some((language) => language.id === next.secondary)) {
-      next.secondary = DEFAULT_SETTINGS.secondary;
-    }
     if (!LAYOUTS.some((layout) => layout.id === next.layout)) next.layout = DEFAULT_SETTINGS.layout;
     if (!THEMES.some(([theme]) => theme === next.theme)) next.theme = DEFAULT_SETTINGS.theme;
     if (!RENDERING_OPTIONS.some(([mode]) => mode === String(next.rendering))) next.rendering = DEFAULT_SETTINGS.rendering;
@@ -145,7 +148,7 @@ function bookById(bookId) {
 
 function bookName(book, languageId) {
   if (!book) return "";
-  return languageId === "ml" ? book.MalayalamShortName : book.EnglishShortName;
+  return book[getLanguage(languageId).bookName];
 }
 
 function getVerses(languageId, bookId, chapterId) {
@@ -171,7 +174,7 @@ function loadChapter(book, chapterId, verseIds = null) {
   const nextChapter = Number(chapterId);
   try {
     const primary = getVerses(settings.primary, book.book_id, nextChapter);
-    const secondary = settings.secondary === "none"
+    const secondary = !settings.secondaryEnabled
       ? []
       : getVerses(settings.secondary, book.book_id, nextChapter);
     chapterVerses = buildVersePairs(primary, secondary);
@@ -196,13 +199,14 @@ function loadChapter(book, chapterId, verseIds = null) {
 
 function queryBooks() {
   const result = db.exec(
-    "SELECT book_id, EnglishShortName, MalayalamShortName, num_chptr FROM books ORDER BY book_id",
+    "SELECT books.book_id, EnglishShortName, MalayalamShortName, TamilShortName, num_chptr FROM books JOIN tamil_books ON books.book_id = tamil_books.book_id ORDER BY books.book_id",
   );
   if (!result[0]?.values) throw new Error("The Bible database does not contain its book list.");
-  return result[0].values.map(([book_id, EnglishShortName, MalayalamShortName, num_chptr]) => ({
+  return result[0].values.map(([book_id, EnglishShortName, MalayalamShortName, TamilShortName, num_chptr]) => ({
     book_id: Number(book_id),
     EnglishShortName,
     MalayalamShortName,
+    TamilShortName,
     num_chptr: Number(num_chptr),
   }));
 }
@@ -211,7 +215,7 @@ function renderHeader() {
   return `<header class="app-header">
     <button class="brand" type="button" data-action="home" aria-label="Go to books">
       <img class="brand-mark" src="${APP_ICON_URL}" alt="">
-      <span><strong>Malayalam Bible</strong><small>Offline reader</small></span>
+      <span><strong>Bible</strong><small>Offline reader</small></span>
     </button>
     <nav class="header-actions" aria-label="App">
       <button class="quiet-button" type="button" data-action="bookmarks">Bookmarks</button>
@@ -222,6 +226,8 @@ function renderHeader() {
 }
 
 function render() {
+  parallelResizeObserver?.disconnect();
+  parallelResizeObserver = undefined;
   document.documentElement.dataset.theme = settings.theme;
   document.documentElement.dataset.view = activeView;
   document.documentElement.style.setProperty("--reading-size", `${16 * settings.zoom / 100}px`);
@@ -239,7 +245,7 @@ function render() {
   app.oncontextmenu = handleContextMenu;
   app.onchange = handleChange;
   app.oninput = handleInput;
-  if (activeView === "reader" && settings.secondary !== "none" && ["balanced", "parallel"].includes(settings.layout)) {
+  if (activeView === "reader" && settings.secondaryEnabled && ["balanced", "parallel"].includes(settings.layout)) {
     connectParallelScroll();
   }
 }
@@ -247,7 +253,7 @@ function render() {
 function renderBooks() {
   const normalizedFilter = bookFilter.trim().toLocaleLowerCase();
   const visibleBooks = books.filter((book) => {
-    const names = `${book.EnglishShortName} ${book.MalayalamShortName}`.toLocaleLowerCase();
+    const names = `${book.EnglishShortName} ${book.MalayalamShortName} ${book.TamilShortName}`.toLocaleLowerCase();
     return names.includes(normalizedFilter);
   });
   const oldTestament = visibleBooks.filter((book) => book.book_id <= 39);
@@ -257,10 +263,10 @@ function renderBooks() {
     <section class="welcome-card">
       <div>
         <p class="eyebrow">A quiet place to read</p>
-        <h1>Read in Malayalam and English.</h1>
+        <h1>Read in Tamil, Malayalam and English.</h1>
         <p>All 66 books are included for offline reading. Choose a book to begin.</p>
       </div>
-      <span class="welcome-symbol" aria-hidden="true">ബൈബിൾ</span>
+      <span class="welcome-symbol" aria-hidden="true">${escapeHtml(getLanguage(settings.primary).bibleName)}</span>
     </section>
     ${continueBook ? `<button class="continue-card" type="button" data-action="continue-reading">
       <span><small>Continue reading</small><strong>${escapeHtml(bookName(continueBook, settings.primary))} ${lastPosition.chapterId}</strong></span>
@@ -281,7 +287,7 @@ function renderBookSection(title, sectionBooks) {
   return `<section class="book-section"><h3>${title}</h3><div class="book-grid">
     ${sectionBooks.map((book) => `<button class="book-card" type="button" data-action="open-book" data-book-id="${book.book_id}">
       <span class="book-card-top"><strong>${escapeHtml(bookName(book, settings.primary))}</strong><span aria-hidden="true">›</span></span>
-      ${settings.secondary === "none" ? "" : `<small>${escapeHtml(bookName(book, settings.secondary))}</small>`}
+      ${settings.secondaryEnabled ? `<small>${escapeHtml(bookName(book, settings.secondary))}</small>` : ""}
       <small>${book.num_chptr} chapters</small>
     </button>`).join("")}
   </div></section>`;
@@ -290,7 +296,7 @@ function renderBookSection(title, sectionBooks) {
 function renderChapters() {
   if (!currentBook) return renderBooks();
   const primaryName = bookName(currentBook, settings.primary);
-  const secondaryName = settings.secondary === "none" ? "" : bookName(currentBook, settings.secondary);
+  const secondaryName = settings.secondaryEnabled ? bookName(currentBook, settings.secondary) : "";
   return `<main class="page narrow-page">
     <div class="page-topline"><button class="back-button" type="button" data-action="home">← Books</button><span class="eyebrow">Choose a chapter</span></div>
     <h1>${escapeHtml(primaryName)}</h1>
@@ -309,14 +315,14 @@ function renderReader() {
     return `<option value="${chapter}" ${chapter === currentChapter ? "selected" : ""}>${chapter}</option>`;
   }).join("");
   const hasSelection = selectedVerses.size > 0;
-  const balanced = settings.secondary !== "none" && settings.layout === "balanced";
+  const balanced = settings.secondaryEnabled && settings.layout === "balanced";
   const readerContent = renderReaderContent();
   return `<main class="reader-page ${balanced ? "is-balanced-reader" : ""}">
     <header class="reader-toolbar">
       <button class="reader-back icon-button" type="button" data-action="chapters" aria-label="Choose a chapter" title="Choose a chapter">‹</button>
       <div class="reader-location">
         <strong>${escapeHtml(bookName(currentBook, settings.primary))}</strong>
-        <span>${escapeHtml(getLanguage(settings.primary).label)}${settings.secondary === "none" ? "" : ` · ${escapeHtml(getLanguage(settings.secondary).label)}`}</span>
+        <span>${escapeHtml(getLanguage(settings.primary).label)}${settings.secondaryEnabled ? ` · ${escapeHtml(getLanguage(settings.secondary).label)}` : ""}</span>
       </div>
       <label class="chapter-picker"><span class="sr-only">Choose chapter</span><select data-select="chapter" aria-label="Choose chapter">${chapterOptions}</select></label>
       <details class="reader-overflow">
@@ -351,13 +357,13 @@ function renderReader() {
 
 function verseButton(verseId, languageId, text) {
   const selected = selectedVerses.has(verseId);
-  return `<button type="button" class="verse-text ${selected ? "is-selected" : ""}" data-action="toggle-verse" data-verse-id="${verseId}" aria-pressed="${selected}" lang="${languageId === "ml" ? "ml" : "en"}">
+  return `<button type="button" class="verse-text ${selected ? "is-selected" : ""}" data-action="toggle-verse" data-verse-id="${verseId}" aria-pressed="${selected}" lang="${languageId === "ml" || languageId === "ta" ? languageId : "en"}">
     <span class="verse-number">${verseId}</span><span>${escapeHtml(text)}</span>
   </button>`;
 }
 
 function renderReaderContent() {
-  if (settings.secondary === "none") {
+  if (!settings.secondaryEnabled) {
     return `<div class="single-language-list">${chapterVerses.map((verse) => verseButton(verse.verseId, settings.primary, verse.primary)).join("")}</div>`;
   }
   if (settings.layout === "verse") {
@@ -379,20 +385,20 @@ function renderReaderContent() {
   }
   if (settings.layout === "balanced") {
     return `<div class="balanced-reader">
-      ${renderLanguagePane(settings.primary, "primary-pane")}
-      ${renderLanguagePane(settings.secondary, "secondary-pane")}
+      ${renderLanguagePane(settings.primary, "primary-pane", "primary")}
+      ${renderLanguagePane(settings.secondary, "secondary-pane", "secondary")}
     </div>`;
   }
   return `<div class="parallel-reader">
-    ${renderLanguagePane(settings.primary, "primary-pane")}
-    ${renderLanguagePane(settings.secondary, "secondary-pane")}
+    ${renderLanguagePane(settings.primary, "primary-pane", "primary")}
+    ${renderLanguagePane(settings.secondary, "secondary-pane", "secondary")}
   </div>`;
 }
 
-function renderLanguagePane(languageId, paneClass) {
+function renderLanguagePane(languageId, paneClass, verseField) {
   return `<section class="parallel-pane ${paneClass}" aria-label="${escapeHtml(getLanguage(languageId).label)}">
     <h3>${escapeHtml(getLanguage(languageId).label)}</h3>
-    <div class="parallel-verses">${chapterVerses.map((verse) => verseButton(verse.verseId, languageId, verse[languageId === settings.primary ? "primary" : "secondary"])).join("")}</div>
+    <div class="parallel-verses">${chapterVerses.map((verse) => verseButton(verse.verseId, languageId, verse[verseField])).join("")}</div>
   </section>`;
 }
 
@@ -403,7 +409,8 @@ function renderSettings() {
     <section class="settings-group">
       <h2>Languages</h2>
       ${renderSelect("primary", "Primary language", LANGUAGES.map(({ id, label }) => [id, label]))}
-      ${renderSelect("secondary", "Second language", [["none", "None"], ...LANGUAGES.map(({ id, label }) => [id, label])])}
+      ${renderCheckbox("secondaryEnabled", "Show second view")}
+      ${settings.secondaryEnabled ? renderSelect("secondary", "Second language", LANGUAGES.map(({ id, label }) => [id, label])) : ""}
       ${renderSelect("layout", "Display layout", LAYOUTS.map(({ id, label }) => [id, label]))}
       <p class="setting-note">Balanced split gives both languages equal space, stacked in portrait and side by side in landscape. Other layouts remain available here.</p>
     </section>
@@ -467,7 +474,7 @@ function renderBookmark(bookmark) {
   const date = new Date(bookmark.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   return `<article class="bookmark-card">
     <button class="bookmark-open" type="button" data-action="open-bookmark" data-bookmark-id="${escapeHtml(bookmark.id)}">
-      <strong>${escapeHtml(title)}</strong><span>${book ? escapeHtml(bookName(book, settings.secondary === "none" ? settings.primary : settings.secondary)) : ""} · ${escapeHtml(date)}</span>
+      <strong>${escapeHtml(title)}</strong><span>${book ? escapeHtml(bookName(book, settings.secondaryEnabled ? settings.secondary : settings.primary)) : ""} · ${escapeHtml(date)}</span>
     </button>
     <button class="icon-button delete-bookmark" type="button" data-action="delete-bookmark" data-bookmark-id="${escapeHtml(bookmark.id)}" aria-label="Delete bookmark" title="Delete bookmark">×</button>
   </article>`;
@@ -476,13 +483,13 @@ function renderBookmark(bookmark) {
 function renderInfo() {
   return `<main class="page narrow-page info-page">
     <div class="page-topline"><button class="back-button" type="button" data-action="back">← Back</button><span class="eyebrow">About this reader</span></div>
-    <h1>Malayalam Bible Reader</h1>
-    <p class="lead">A private, offline-first reading app with Malayalam and English KJV and ASV texts.</p>
+    <h1>Bible</h1>
+    <p class="lead">A private, offline-first reading app with Malayalam, Tamil, and English KJV texts.</p>
     <section class="settings-group">
       <h2>Included texts</h2>
-      <ul class="text-list"><li>Malayalam: The Complete Malayalam Bible In Unicode, Ver. 3</li><li>English: King James Version (KJV)</li><li>English: American Standard Version (ASV)</li></ul>
+      <ul class="text-list"><li>Malayalam: The Complete Malayalam Bible In Unicode, Ver. 3</li><li>Tamil: Bible-tamil by Arul John (MIT License)</li><li>English: King James Version (KJV)</li></ul>
       <p class="setting-note">The original app's information page credits the Malayalam encoding to Nishad Kaippally and describes non-commercial, non-profit use under a Creative Commons license; it does not identify a license version. The original app describes the English content as public domain. This recreation is intended for private use; confirm current terms before sharing or redistributing text.</p>
-      <p class="setting-note">App behavior and text content are recreated from the local decompiled source supplied for this project. The original name and branding are not reused; the app icon was supplied for this recreation.</p>
+      <p class="setting-note">Tamil text is adapted from Arul John's Bible-tamil repository. Its MIT license and attribution are included in TAMIL-LICENSE.txt.</p>
     </section>
     <section class="settings-group">
       <h2>Offline by design</h2>
@@ -536,7 +543,7 @@ function bookmarkVerses(verseIds) {
   };
   if (writeBookmarks([...readBookmarks(), bookmark])) {
     selectedVerses.clear();
-    render();
+    renderReaderPreservingScroll();
     notify("Verses bookmarked.");
   }
 }
@@ -560,7 +567,7 @@ function selectedText() {
     if (!verse) return "";
     const reference = `${bookName(currentBook, settings.primary)} ${currentChapter}:${verseId}`;
     const primary = `${getLanguage(settings.primary).label}: ${verse.primary}`;
-    const secondary = settings.secondary === "none"
+    const secondary = !settings.secondaryEnabled
       ? ""
       : `\n${getLanguage(settings.secondary).label}: ${verse.secondary}`;
     return `${reference}\n${primary}${secondary}`;
@@ -603,31 +610,59 @@ async function shareSelection() {
   }
 }
 
+function renderReaderPreservingScroll() {
+  const selector = ".reader-content, .parallel-pane, .side-by-side-reader";
+  const scrollPositions = [...app.querySelectorAll(selector)].map((element) => ({
+    top: element.scrollTop,
+    left: element.scrollLeft,
+  }));
+  render();
+  app.querySelectorAll(selector).forEach((element, index) => {
+    element.scrollTop = scrollPositions[index].top;
+    element.scrollLeft = scrollPositions[index].left;
+  });
+}
+
 function toggleVerse(verseId) {
   if (longPressTriggered) {
     longPressTriggered = false;
     return;
   }
-  const scrollPositions = [...app.querySelectorAll(".parallel-pane")].map((pane) => pane.scrollTop);
   if (selectedVerses.has(verseId)) selectedVerses.delete(verseId);
   else selectedVerses.add(verseId);
-  render();
-  app.querySelectorAll(".parallel-pane").forEach((pane, index) => {
-    pane.scrollTop = scrollPositions[index] || 0;
-  });
+  renderReaderPreservingScroll();
 }
 
 function connectParallelScroll() {
   const panes = [...app.querySelectorAll(".parallel-pane")];
+  if (panes.length !== 2) return;
+  const rows = panes.map((pane) => [...pane.querySelectorAll(".verse-text")]);
+  function alignVerses() {
+    if (!panes[0].isConnected || !panes[0].clientWidth || !panes[1].clientWidth) return;
+    const scrollPositions = panes.map((pane) => pane.scrollTop);
+    for (const verses of rows) {
+      for (const verse of verses) verse.style.minHeight = "";
+    }
+    const heights = rows[0].map((verse, index) =>
+      Math.max(verse.getBoundingClientRect().height, rows[1][index].getBoundingClientRect().height));
+    for (const verses of rows) {
+      verses.forEach((verse, index) => { verse.style.minHeight = `${heights[index]}px`; });
+    }
+    panes.forEach((pane, index) => { pane.scrollTop = scrollPositions[index]; });
+  }
+  alignVerses();
+  parallelResizeObserver = new ResizeObserver(alignVerses);
+  panes.forEach((pane) => parallelResizeObserver.observe(pane));
+  document.fonts.ready.then(alignVerses);
   for (const pane of panes) {
     pane.addEventListener("scroll", () => {
-      if (parallelScrollLock || panes.length !== 2) return;
+      if (parallelScrollLock) return;
       const other = panes.find((candidate) => candidate !== pane);
       const max = pane.scrollHeight - pane.clientHeight;
       const otherMax = other.scrollHeight - other.clientHeight;
       if (max <= 0 || otherMax <= 0) return;
       parallelScrollLock = true;
-      other.scrollTop = (pane.scrollTop / max) * otherMax;
+      other.scrollTop = pane.scrollTop;
       requestAnimationFrame(() => { parallelScrollLock = false; });
     }, { passive: true });
   }
@@ -758,7 +793,7 @@ function handleClick(event) {
       break;
     case "clear-selection":
       selectedVerses.clear();
-      render();
+      renderReaderPreservingScroll();
       break;
     case "copy":
       void copySelection();

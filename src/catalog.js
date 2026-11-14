@@ -1,8 +1,11 @@
 export const LANGUAGES = Object.freeze([
-  { id: "ml", label: "Malayalam", bookName: "MalayalamShortName", table: "verses" },
-  { id: "kjv", label: "English - KJV", bookName: "EnglishShortName", table: "verses_kjv" },
-  { id: "asv", label: "English - ASV", bookName: "EnglishShortName", table: "verses_asv" },
+  { id: "ta", label: "Tamil", bookName: "TamilShortName", bibleName: "பைபிள்", table: "verses_tamil" },
+  { id: "ml", label: "Malayalam", bookName: "MalayalamShortName", bibleName: "ബൈബിൾ", table: "verses" },
+  { id: "kjv", label: "English - KJV", bookName: "EnglishShortName", bibleName: "Bible", table: "verses_kjv" },
 ]);
+
+export const DEFAULT_PRIMARY_LANGUAGE = "ta";
+export const DEFAULT_SECONDARY_LANGUAGE = "ml";
 
 export const LAYOUTS = Object.freeze([
   { id: "verse", label: "Verse by verse" },
@@ -12,6 +15,14 @@ export const LAYOUTS = Object.freeze([
 ]);
 
 const LANGUAGE_BY_ID = new Map(LANGUAGES.map((language) => [language.id, language]));
+
+export function readSecondView(stored) {
+  return {
+    secondaryEnabled: typeof stored.secondaryEnabled === "boolean"
+      ? stored.secondaryEnabled : stored.secondary !== "none",
+    secondary: LANGUAGES.some((language) => language.id === stored.secondary) ? stored.secondary : DEFAULT_SECONDARY_LANGUAGE,
+  };
+}
 
 export function getLanguage(languageId) {
   return LANGUAGE_BY_ID.get(languageId) ?? LANGUAGE_BY_ID.get("ml");

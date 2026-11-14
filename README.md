@@ -1,6 +1,6 @@
-# Malayalam Bible Reader
+# Bible
 
-An offline-first responsive web reader packaged for Android with Capacitor. It includes the three Bible editions from the original app's database: Malayalam, English KJV, and English ASV.
+An offline-first responsive web reader packaged for Android with Capacitor. It includes Malayalam, Tamil, and English KJV texts.
 
 ## Bible data
 
@@ -8,9 +8,12 @@ The Bible database is included for private use. To rebuild it from the original 
 
 ```powershell
 python scripts\import-bible-db.py "<decompiled-source-directory>"
+python scripts\import-tamil-bible.py
 ```
 
-The importer checks SQLite integrity, all 66 books, and coverage of all 1,189 chapters in each edition before writing `public\data\bible.sqlite`.
+The first importer replaces `public\data\bible.sqlite` with the original editions. The second downloads the pinned Tamil source and adds it to the database; run both commands when rebuilding the database.
+
+Tamil text is adapted from [Bible-tamil by Arul John](https://github.com/aruljohn/Bible-tamil), under the MIT license. Its copyright and license notice is included in `public/TAMIL-LICENSE.txt`.
 
 The original app's information page credits the Malayalam encoding to Nishad Kaippally and describes it as released under a Creative Commons license for non-commercial, non-profit use, but does not state a license version. It describes the English content as public domain. Keep the repository and deployment private unless the database's redistribution rights and attribution requirements are verified.
 
@@ -68,9 +71,10 @@ The debug APK is written to `android\app\build\outputs\apk\debug\app-debug.apk`.
 
 ## Features
 
-- Browse all books and chapters in Malayalam and/or English.
+- Browse all books and chapters in Malayalam, Tamil, and/or English.
 - Read one language, verse-by-verse bilingual, balanced split (equal panes that stack in portrait and become columns in landscape), parallel (stacked synchronized panes), or side-by-side.
-- Choose any combination of Malayalam, KJV, and ASV; the initial view is Malayalam + KJV to put the requested bilingual reader up front.
+- The default is Tamil with Malayalam as the second language. Choose any combination of Tamil, Malayalam, and KJV. Turn the second view on or off in Settings; the selected second language is remembered.
+- Balanced and parallel panes align corresponding verses and scroll together.
 - Adjust both reading languages in Settings using Normal (100%), Big (150%), Bigger (200%), or Biggest (250%) zoom.
 - Adjust theme, legacy Unicode rendering preference, and bookmark options.
 - Select verses to copy, share, clear, or bookmark; bookmark a chapter; open and delete saved bookmarks; optionally group bookmarks by date.

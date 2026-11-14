@@ -11,7 +11,7 @@ from pathlib import Path
 EXPECTED_CHUNKS = 27
 EXPECTED_BOOKS = 66
 EXPECTED_CHAPTERS = 1189
-TABLES = ("verses", "verses_kjv", "verses_asv")
+TABLES = ("verses", "verses_kjv")
 
 
 def main():
@@ -59,6 +59,10 @@ def main():
                     raise RuntimeError(
                         f"{table} coverage mismatch: {covered_books} books, {chapter_count} chapters."
                     )
+
+            connection.execute("DROP TABLE IF EXISTS verses_asv")
+            connection.commit()
+            connection.execute("VACUUM")
 
         temporary.replace(output)
     finally:

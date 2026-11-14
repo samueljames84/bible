@@ -1,7 +1,7 @@
 {
-  "name": "Malayalam Bible Reader",
-  "short_name": "Bible Reader",
-  "description": "Offline Malayalam and English Bible reader.",
+  "name": "Bible",
+  "short_name": "Bible",
+  "description": "Offline Tamil, Malayalam and English Bible reader.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#fffaf0",
