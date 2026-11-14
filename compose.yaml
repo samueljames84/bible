@@ -1,9 +1,9 @@
-name: malayalam-bible
+name: bible
 
 services:
   bible-reader:
-    image: malayalam-bible
-    container_name: malayalam-bible
+    image: bible
+    container_name: bible
     build:
       context: .
     ports:

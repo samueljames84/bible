@@ -61,7 +61,7 @@ docker compose -f compose.yaml up -d --wait
 docker compose -f compose.yaml stop
 ```
 
-The Compose project, image, and container are named `malayalam-bible`. Docker publishes port 8834 on all host interfaces. The direct Windows server and Docker container cannot use that port at the same time. For offline caching on public hosts, serve the site over HTTPS.
+The Compose project, image, and container are named `bible`; the service remains `bible-reader`. Docker publishes port 8834 on all host interfaces. If upgrading from the previous `malayalam-bible` container, stop it with `docker stop malayalam-bible` before starting the new container, or it will keep port 8834 occupied. The old container is not removed automatically. The direct Windows server and Docker container cannot use that port at the same time. For offline caching on public hosts, serve the site over HTTPS.
 
 ## Package for Android
 
