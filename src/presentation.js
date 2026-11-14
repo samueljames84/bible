@@ -90,18 +90,20 @@ function startPresentation(title, languageId, verses, chapterTotal) {
 
   function showSlide(start) {
     const first = verses.findIndex((verse) => verse.id >= start);
-    const slide = presentationSlide(verses, start);
+    const heights = rows.map((row) => row.getBoundingClientRect().height);
+    const endHeight = end.getBoundingClientRect().height;
+    const slide = presentationSlide(verses, start, heights, viewport.clientHeight - 1, endHeight);
     const offset = rows[first].getBoundingClientRect().top - panel.getBoundingClientRect().top;
-    const nextAfterFour = rows[first + 4];
-    clip.style.height = `${nextAfterFour
-      ? Math.min(viewport.clientHeight, nextAfterFour.getBoundingClientRect().top - rows[first].getBoundingClientRect().top)
-      : viewport.clientHeight}px`;
+    const showsEnd = slide.at(-1)?.id === verses.at(-1).id;
+    const slideHeight = heights.slice(first, first + slide.length).reduce((sum, height) => sum + height, 0)
+      + (showsEnd ? endHeight : 0);
+    clip.style.height = `${slideHeight}px`;
     panel.dataset.start = String(start);
     progress.textContent = `${verses[first].id} / ${chapterTotal}`;
     rows.forEach((row, index) => {
       row.setAttribute("aria-hidden", index < first || index >= first + slide.length ? "true" : "false");
     });
-    end.setAttribute("aria-hidden", slide.at(-1)?.id === verses.at(-1).id ? "false" : "true");
+    end.setAttribute("aria-hidden", showsEnd ? "false" : "true");
     panel.style.transform = `translateY(${-offset}px)`;
   }
 
@@ -129,20 +131,6 @@ function startPresentation(title, languageId, verses, chapterTotal) {
     let size = largestSize(256, ({ heights, endHeight }) =>
       heights.every((height, index) => height + (heights[index + 1] ?? 0) <= heightLimit)
       && heights.at(-1) + (heights.at(-2) ?? 0) + endHeight <= heightLimit);
-    const tailStarts = [];
-    for (let start = 1; start <= last; start += 2) {
-      const first = verses.findIndex((verse) => verse.id >= start);
-      if (verses.length - first <= 4) tailStarts.push(first);
-    }
-    for (let index = tailStarts.length - 1; index >= 0; index -= 1) {
-      const first = tailStarts[index];
-      const { heights, endHeight } = measureAt(size);
-      const tailHeight = heights.slice(first).reduce((sum, height) => sum + height, 0);
-      if (tailHeight <= heightLimit && tailHeight + endHeight > heightLimit) {
-        size = largestSize(size, (measured) =>
-          measured.heights.slice(first).reduce((sum, height) => sum + height, 0) + measured.endHeight <= heightLimit);
-      }
-    }
     viewport.style.setProperty("--presentation-size", `${size}px`);
   }
 
