@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY index.html vite.config.js ./
+COPY index.html presentation.html vite.config.js ./
 COPY src ./src
 COPY scripts/generate-sw.mjs ./scripts/generate-sw.mjs
 COPY public ./public
