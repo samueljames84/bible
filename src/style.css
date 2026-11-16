@@ -1086,6 +1086,32 @@ select:focus-visible {
   line-height: 1.75;
 }
 
+.donation-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 144px);
+  align-items: center;
+  gap: 16px;
+}
+
+.donation-qr {
+  margin: 0;
+  text-align: center;
+}
+
+.donation-qr img {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 8px;
+  background: #fff;
+}
+
+.donation-qr figcaption {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .donation-link {
   display: inline-block;
   max-width: 100%;

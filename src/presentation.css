@@ -53,6 +53,9 @@ body,
   position: relative;
   min-height: 0;
   overflow: hidden;
+  touch-action: pinch-zoom;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .presentation-clip,

@@ -27,3 +27,9 @@ export function presentationSlide(verses, start, heights, availableHeight, endHe
 export function nextPresentationStart(current, direction, last) {
   return Math.max(1, Math.min(last, current + direction * 2));
 }
+
+export function presentationSwipeDirection(deltaX, deltaY) {
+  if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 40) return 0;
+  const delta = Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY;
+  return delta < 0 ? 1 : -1;
+}

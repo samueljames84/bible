@@ -7,6 +7,7 @@ import {
   lastPresentationStart,
   nextPresentationStart,
   presentationSlide,
+  presentationSwipeDirection,
 } from "./presentation-logic.js";
 import "./presentation.css";
 
@@ -87,6 +88,7 @@ function startPresentation(title, languageId, verses, chapterTotal) {
   let animationTimer;
   let generation = 0;
   let resizeFrame;
+  let swipeStart;
 
   function showSlide(start) {
     const first = verses.findIndex((verse) => verse.id >= start);
@@ -135,6 +137,7 @@ function startPresentation(title, languageId, verses, chapterTotal) {
   }
 
   function redraw() {
+    swipeStart = undefined;
     generation += 1;
     window.clearTimeout(animationTimer);
     animating = false;
@@ -161,13 +164,36 @@ function startPresentation(title, languageId, verses, chapterTotal) {
     }, SLIDE_DURATION_MS);
   }
 
+  function navigate(direction) {
+    target = nextPresentationStart(target, direction, last);
+    advance();
+  }
+
+  viewport.addEventListener("pointerdown", (event) => {
+    if (event.pointerType === "mouse") return;
+    if (!event.isPrimary) {
+      swipeStart = undefined;
+      return;
+    }
+    swipeStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    viewport.setPointerCapture(event.pointerId);
+  });
+  viewport.addEventListener("pointerup", (event) => {
+    if (swipeStart?.id !== event.pointerId) return;
+    const direction = presentationSwipeDirection(event.clientX - swipeStart.x, event.clientY - swipeStart.y);
+    swipeStart = undefined;
+    if (direction) navigate(direction);
+  });
+  for (const type of ["pointercancel", "lostpointercapture"]) {
+    viewport.addEventListener(type, () => { swipeStart = undefined; });
+  }
+
   window.addEventListener("keydown", (event) => {
     const direction = ["ArrowRight", "ArrowDown"].includes(event.key) ? 1
       : ["ArrowLeft", "ArrowUp"].includes(event.key) ? -1 : 0;
     if (!direction) return;
     event.preventDefault();
-    target = nextPresentationStart(target, direction, last);
-    advance();
+    navigate(direction);
   });
   window.addEventListener("resize", () => {
     cancelAnimationFrame(resizeFrame);

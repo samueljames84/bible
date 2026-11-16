@@ -5,6 +5,7 @@ import {
   lastPresentationStart,
   nextPresentationStart,
   presentationSlide,
+  presentationSwipeDirection,
 } from "./presentation-logic.js";
 
 test("slides advance by two references and fit as many complete verses as possible", () => {
@@ -20,6 +21,21 @@ test("slides advance by two references and fit as many complete verses as possib
   assert.equal(nextPresentationStart(1, -1, last), 1);
   assert.equal(nextPresentationStart(1, 1, last), 3);
   assert.equal(nextPresentationStart(7, 1, last), 7);
+});
+
+test("swipes left or up advance and swipes right or down go back", () => {
+  assert.equal(presentationSwipeDirection(-100, 5), 1);
+  assert.equal(presentationSwipeDirection(100, -5), -1);
+  assert.equal(presentationSwipeDirection(5, -100), 1);
+  assert.equal(presentationSwipeDirection(-5, 100), -1);
+  assert.equal(presentationSwipeDirection(-60, 100), -1);
+});
+
+test("taps and small movements do not change the slide", () => {
+  assert.equal(presentationSwipeDirection(0, 0), 0);
+  assert.equal(presentationSwipeDirection(25, -25), 0);
+  assert.equal(presentationSwipeDirection(-39, 39), 0);
+  assert.equal(presentationSwipeDirection(-40, 0), 1);
 });
 
 test("reserves space for the end marker and never shows a partial verse", () => {

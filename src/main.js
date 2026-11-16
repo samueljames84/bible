@@ -15,6 +15,7 @@ import {
 } from "./catalog.js";
 import { DEFAULT_ZOOM, readZoom, ZOOM_OPTIONS } from "./zoom.js";
 import { bookmarkBackup, mergeBookmarks, parseBookmarkBackup } from "./bookmarks.js";
+import { connectScrollSync } from "./scroll-sync.js";
 import "./style.css";
 
 const app = document.querySelector("#app");
@@ -62,7 +63,6 @@ let bookFilter = "";
 let noticeTimer;
 let longPressTimer;
 let longPressTriggered = false;
-let parallelScrollLock = false;
 let parallelResizeObserver;
 let lastPosition;
 let settings = readSettings();
@@ -580,7 +580,13 @@ function renderInfo() {
     <section class="settings-group">
       <h2>Support this app</h2>
       <p>This app is completely ad-free and fully functional. If you find it useful, please consider donating to help cover server costs. Thank you for your support!</p>
-      <a class="donation-link" href="https://buymeacoffee.com/sj84" ${Capacitor.isNativePlatform() ? "" : 'target="_blank" rel="noopener noreferrer"'}><img src="${import.meta.env.BASE_URL}buy-me-a-coffee.png" alt="Buy Me a Coffee" width="220" height="62"></a>
+      <div class="donation-options">
+        <a class="donation-link" href="https://buymeacoffee.com/sj84" ${Capacitor.isNativePlatform() ? "" : 'target="_blank" rel="noopener noreferrer"'}><img src="${import.meta.env.BASE_URL}buy-me-a-coffee.png" alt="Buy Me a Coffee" width="220" height="62"></a>
+        <figure class="donation-qr">
+          <img src="${import.meta.env.BASE_URL}sam_gpay.png" alt="Google Pay donation QR code" width="144" height="144">
+          <figcaption>Google Pay / UPI</figcaption>
+        </figure>
+      </div>
       <p class="setting-note">The external donation website opens in your browser, requires internet access, and has its own privacy practices.</p>
     </section>
   </main>`;
@@ -742,18 +748,7 @@ function connectParallelScroll() {
   parallelResizeObserver = new ResizeObserver(alignVerses);
   panes.forEach((pane) => parallelResizeObserver.observe(pane));
   document.fonts.ready.then(alignVerses);
-  for (const pane of panes) {
-    pane.addEventListener("scroll", () => {
-      if (parallelScrollLock) return;
-      const other = panes.find((candidate) => candidate !== pane);
-      const max = pane.scrollHeight - pane.clientHeight;
-      const otherMax = other.scrollHeight - other.clientHeight;
-      if (max <= 0 || otherMax <= 0) return;
-      parallelScrollLock = true;
-      other.scrollTop = pane.scrollTop;
-      requestAnimationFrame(() => { parallelScrollLock = false; });
-    }, { passive: true });
-  }
+  connectScrollSync(panes[0], panes[1]);
 }
 
 function handlePointerDown(event) {
