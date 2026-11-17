@@ -4,6 +4,7 @@ services:
   bible-reader:
     image: bible
     container_name: bible
+    restart: unless-stopped
     build:
       context: .
     ports:
