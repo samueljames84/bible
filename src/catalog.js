@@ -1,6 +1,7 @@
 export const LANGUAGES = Object.freeze([
   { id: "ta", label: "Tamil", bookName: "TamilShortName", bibleName: "பைபிள்", table: "verses_tamil" },
   { id: "ml", label: "Malayalam", bookName: "MalayalamShortName", bibleName: "ബൈബിൾ", table: "verses" },
+  { id: "hi", label: "Hindi", bookName: "HindiShortName", bibleName: "बाइबिल", table: "verses_hindi" },
   { id: "kjv", label: "English - KJV", bookName: "EnglishShortName", bibleName: "Bible", table: "verses_kjv" },
 ]);
 

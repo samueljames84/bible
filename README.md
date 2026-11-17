@@ -1,6 +1,6 @@
 # Bible
 
-An offline-first responsive web reader packaged for Android with Capacitor. It includes Malayalam, Tamil, and English KJV texts.
+An offline-first responsive web reader packaged for Android with Capacitor. It includes Malayalam, Tamil, Hindi, and English KJV texts. The web version is available at <https://bible.sj84.net/>.
 
 ## Bible data
 
@@ -10,9 +10,12 @@ The Bible database is included for private use. To rebuild it from the original 
 python scripts\import-bible-db.py "<decompiled-source-directory>"
 python scripts\import-tamil-bible.py
 python scripts\import-malayalam-bible.py
+python scripts\import-hindi-bible.py
 ```
 
-The first importer replaces `public\data\bible.sqlite` with the original editions. The next two download pinned sources and add Tamil and replace Malayalam; run all three commands when rebuilding the database. The Malayalam import verifies the archive and performs its database replacement transactionally.
+The first importer replaces `public\data\bible.sqlite` with the original editions. The next three download pinned sources and add Tamil, replace Malayalam, and add Hindi; run all four commands when rebuilding the database. The Malayalam and Hindi imports verify the archive and perform their database changes transactionally.
+
+Hindi text is from [Free Bibles India's Hindi Bible](https://github.com/FreeBiblesIndia/Hindi_Bible) (<http://www.freebiblesindia.in/bible/hin/>), under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), pinned to revision `0bc468f`. Attribution and changes are in `public/HINDI-LICENSE.txt`. It is compatible with KJV numbering: every one of the 31,102 KJV chapter/verse references exists in the Hindi source with no boundary shifts. The source has two extra verses (3 John 1:15 and Revelation 12:18), which are merged into 3 John 1:14 and Revelation 13:1. Footnotes, headings, and cross-references are omitted. As with the other translations, matching numbers do not prove identical wording.
 
 Tamil text is adapted from [Bible-tamil by Arul John](https://github.com/aruljohn/Bible-tamil), under the MIT license. Its copyright and license notice is included in `public/TAMIL-LICENSE.txt`.
 

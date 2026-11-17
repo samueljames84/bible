@@ -264,14 +264,15 @@ function loadChapter(book, chapterId, verseIds = null) {
 
 function queryBooks() {
   const result = db.exec(
-    "SELECT books.book_id, EnglishShortName, MalayalamShortName, TamilShortName, num_chptr FROM books JOIN tamil_books ON books.book_id = tamil_books.book_id ORDER BY books.book_id",
+    "SELECT books.book_id, EnglishShortName, MalayalamShortName, TamilShortName, HindiShortName, num_chptr FROM books JOIN tamil_books ON books.book_id = tamil_books.book_id JOIN hindi_books ON books.book_id = hindi_books.book_id ORDER BY books.book_id",
   );
   if (!result[0]?.values) throw new Error("The Bible database does not contain its book list.");
-  return result[0].values.map(([book_id, EnglishShortName, MalayalamShortName, TamilShortName, num_chptr]) => ({
+  return result[0].values.map(([book_id, EnglishShortName, MalayalamShortName, TamilShortName, HindiShortName, num_chptr]) => ({
     book_id: Number(book_id),
     EnglishShortName,
     MalayalamShortName,
     TamilShortName,
+    HindiShortName,
     num_chptr: Number(num_chptr),
   }));
 }
@@ -319,7 +320,7 @@ function render() {
 function renderBooks() {
   const normalizedFilter = bookFilter.trim().toLocaleLowerCase();
   const visibleBooks = books.filter((book) => {
-    const names = `${book.EnglishShortName} ${book.MalayalamShortName} ${book.TamilShortName}`.toLocaleLowerCase();
+    const names = `${book.EnglishShortName} ${book.MalayalamShortName} ${book.TamilShortName} ${book.HindiShortName}`.toLocaleLowerCase();
     return names.includes(normalizedFilter);
   });
   const oldTestament = visibleBooks.filter((book) => book.book_id <= 39);
@@ -329,7 +330,7 @@ function renderBooks() {
     <section class="welcome-card">
       <div>
         <p class="eyebrow">A quiet place to read</p>
-        <h1>Read in Tamil, Malayalam and English.</h1>
+        <h1>Read in Tamil, Malayalam, Hindi and English.</h1>
         <p>All 66 books are included for offline reading. Choose a book to begin.</p>
       </div>
       <span class="welcome-symbol" aria-hidden="true">${escapeHtml(getLanguage(settings.primary).bibleName)}</span>
@@ -430,7 +431,7 @@ function renderReader() {
 
 function verseButton(verseId, languageId, text) {
   const selected = selectedVerses.has(verseId);
-  return `<button type="button" class="verse-text ${selected ? "is-selected" : ""}" data-action="toggle-verse" data-verse-id="${verseId}" aria-pressed="${selected}" lang="${languageId === "ml" || languageId === "ta" ? languageId : "en"}">
+  return `<button type="button" class="verse-text ${selected ? "is-selected" : ""}" data-action="toggle-verse" data-verse-id="${verseId}" aria-pressed="${selected}" lang="${["ml", "ta", "hi"].includes(languageId) ? languageId : "en"}">
     <span class="verse-number">${verseId}</span><span>${escapeHtml(text)}</span>
   </button>`;
 }
@@ -565,13 +566,18 @@ function renderInfo() {
   return `<main class="page narrow-page info-page">
     <div class="page-topline"><button class="back-button" type="button" data-action="back">← Back</button><span class="eyebrow">About this reader</span></div>
     <h1>Bible</h1>
-    <p class="lead">A private, offline-first reading app with Malayalam, Tamil, and English KJV texts.</p>
+    <p class="lead">A private, offline-first reading app with Malayalam, Tamil, Hindi, and English KJV texts.</p>
     <section class="settings-group">
       <h2>Included texts</h2>
-      <ul class="text-list"><li>Malayalam: Free Bibles India, adapted to KJV references (CC BY-SA 4.0)</li><li>Tamil: Bible-tamil by Arul John (MIT License)</li><li>English: King James Version (KJV)</li></ul>
+      <ul class="text-list"><li>Malayalam: Free Bibles India, adapted to KJV references (CC BY-SA 4.0)</li><li>Hindi: Free Bibles India (CC BY-SA 4.0)</li><li>Tamil: Bible-tamil by Arul John (MIT License)</li><li>English: King James Version (KJV)</li></ul>
       <p class="setting-note">Malayalam original work available at http://www.freebiblesindia.in. Verse boundaries have been adapted; some passages are combined or unavailable, and translation wording can differ from KJV. See MALAYALAM-LICENSE.txt for attribution and license details.</p>
+      <p class="setting-note">Hindi text is from the <a href="https://github.com/FreeBiblesIndia/Hindi_Bible" target="_blank" rel="noopener">Free Bibles India Hindi Bible</a> (also at http://www.freebiblesindia.in/bible/hin/), shared under CC BY-SA 4.0. Its verse numbering matches KJV; the app omits the source's footnotes and cross-references, and merges one extra verse each in 3 John 1 and Revelation 12 into the KJV verse it belongs to. See HINDI-LICENSE.txt.</p>
       <p class="setting-note">Verse numbers match KJV, but the translations have not been comprehensively checked for equivalent wording. The original app describes the English content as public domain; confirm its terms before redistribution.</p>
       <p class="setting-note">Tamil text is adapted from Arul John's Bible-tamil repository. Its MIT license and attribution are included in TAMIL-LICENSE.txt.</p>
+    </section>
+    <section class="settings-group">
+      <h2>Web version</h2>
+      <p>This reader is also available in any web browser at <a href="https://bible.sj84.net/" ${Capacitor.isNativePlatform() ? "" : 'target="_blank" rel="noopener noreferrer"'}>https://bible.sj84.net/</a>. The web version includes a presentation mode for projecting a chapter.</p>
     </section>
     <section class="settings-group">
       <h2>Offline by design</h2>

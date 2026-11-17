@@ -217,7 +217,7 @@ async function initialize() {
   const db = new SQL.Database(new Uint8Array(await response.arrayBuffer()));
   try {
     const [book] = readRows(db,
-      "SELECT books.book_id, num_chptr, EnglishShortName, MalayalamShortName, TamilShortName FROM books JOIN tamil_books ON books.book_id = tamil_books.book_id WHERE books.book_id = ?",
+      "SELECT books.book_id, num_chptr, EnglishShortName, MalayalamShortName, TamilShortName, HindiShortName FROM books JOIN tamil_books ON books.book_id = tamil_books.book_id JOIN hindi_books ON books.book_id = hindi_books.book_id WHERE books.book_id = ?",
       [bookId]);
     if (!book || chapterId > Number(book.num_chptr)) throw new Error("That chapter is not available.");
     const source = readRows(db,

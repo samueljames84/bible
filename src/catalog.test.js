@@ -6,6 +6,7 @@ test("maps the editions to the correct database tables", () => {
   assert.equal(getTranslationTable("ml"), "verses");
   assert.equal(getTranslationTable("kjv"), "verses_kjv");
   assert.equal(getTranslationTable("ta"), "verses_tamil");
+  assert.equal(getTranslationTable("hi"), "verses_hindi");
   assert.equal(getLanguage("unknown").id, "ml");
 });
 
