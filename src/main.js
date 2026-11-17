@@ -785,6 +785,10 @@ function openBookmark(bookmarkId) {
   loadChapter(book, Number(bookmark.chapterId), bookmark.verseIds || []);
 }
 
+function rememberReturnView() {
+  if (["books", "chapters", "reader"].includes(activeView)) returnView = activeView;
+}
+
 function handleNativeBack() {
   if (activeView === "reader") {
     activeView = "chapters";
@@ -800,12 +804,11 @@ function handleNativeBack() {
     void App.exitApp();
     return;
   }
-  activeView = returnView;
-  if (activeView === "reader" && currentBook) {
-    loadChapter(currentBook, currentChapter, [...selectedVerses]);
-  } else {
-    render();
-  }
+  // Bookmarks, settings and info always lead back to chapter selection or home.
+  activeView = returnView === "chapters" && currentBook ? "chapters"
+    : returnView === "reader" && currentBook ? "chapters"
+      : "books";
+  render();
 }
 
 function handleClick(event) {
@@ -819,28 +822,23 @@ function handleClick(event) {
       render();
       break;
     case "back":
-      activeView = returnView;
-      if (activeView === "reader" && currentBook) {
-        loadChapter(currentBook, currentChapter, [...selectedVerses]);
-      } else {
-        render();
-      }
+      handleNativeBack();
       break;
     case "settings":
       if (activeView === "settings") break;
-      returnView = activeView;
+      rememberReturnView();
       activeView = "settings";
       render();
       break;
     case "info":
       if (activeView === "info") break;
-      returnView = activeView;
+      rememberReturnView();
       activeView = "info";
       render();
       break;
     case "bookmarks":
       if (activeView === "bookmarks") break;
-      returnView = activeView;
+      rememberReturnView();
       activeView = "bookmarks";
       render();
       break;
@@ -972,8 +970,14 @@ async function initialize() {
   render();
   if (Capacitor.isNativePlatform()) {
     await App.addListener("backButton", handleNativeBack);
-  }
-  if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    // Android serves bundled assets directly; a stale worker cache would hide app updates.
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .then(() => ("caches" in window ? caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))) : null))
+        .catch(() => {});
+    }
+  } else if (import.meta.env.PROD && "serviceWorker" in navigator) {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
       .catch((error) => notify(`Offline cache could not be installed: ${error.message}`));
   }

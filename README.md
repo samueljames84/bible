@@ -90,6 +90,7 @@ The debug APK is written to `android\app\build\outputs\apk\debug\app-debug.apk`.
 - Adjust theme (including Dark Green, Black, and Dark Grey), legacy Unicode rendering preference, and bookmark options. The original green-tinted Black theme is retained as Dark Green.
 - Select verses to copy, share, clear, or bookmark; bookmark a chapter; open and delete saved bookmarks; optionally group bookmarks by date.
 - Import and export bookmark backups as JSON from the Bookmarks page on the website or Android. Imports merge with existing bookmarks and skip duplicate passages; the Android system file picker lets you choose where to save or open the backup.
+- Back navigation (on-screen Back and the Android back button): reader → chapter selection → home; Bookmarks, Settings and Info return to chapter selection (if a book is open) or home.
 - Optionally support server costs through the external Buy Me a Coffee link or the Google Pay / UPI QR code beside it on the Info page. Both images are bundled for offline display; opening the donation website requires internet access and is subject to that site's privacy practices.
 - Continue at the last read chapter.
 
